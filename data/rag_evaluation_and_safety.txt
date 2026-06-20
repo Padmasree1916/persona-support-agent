@@ -1,0 +1,43 @@
+Evaluating and Safeguarding a Document Question-Answering Bot
+
+Why evaluation matters
+
+A document question-answering bot can produce polished responses even when its evidence is weak. Visual fluency is therefore not a sufficient quality measure. Evaluation should examine the complete chain: whether documents were extracted correctly, whether the right chunks were retrieved, whether the answer is supported by those chunks, whether citations point to the correct locations, and whether the system refuses questions that its sources cannot answer. Testing each stage separately makes failures easier to diagnose.
+
+Building an evaluation set
+
+The evaluation process begins with a representative question set. Questions should cover direct facts, definitions, comparisons, summaries, and information that must be combined across passages. Some questions should use wording that differs from the source so retrieval is tested beyond exact keyword matching. Others should contain ambiguous terms or ask about similar concepts found in multiple documents. The set should include questions whose answers span more than one file and questions that require a specific date, quantity, limitation, or recommendation.
+
+Unanswerable questions are essential. A grounded bot should not treat every prompt as an invitation to improvise. Tests should include topics absent from the collection, false assumptions, and requests for details that are more specific than the documents support. The expected behavior is an explicit statement that the answer cannot be found in the provided documents. A refusal is a correct result when evidence is missing.
+
+Each answerable test needs a reference answer and evidence labels. Evidence labels identify the source pages or sections that contain the necessary information. They need not prescribe exact wording for the generated response. Instead, they establish the facts that must appear and the passages that justify those facts. This allows evaluators to judge both factual coverage and grounding.
+
+Retrieval metrics
+
+Retrieval can be measured before a language model is involved. Recall at k asks whether at least one required evidence chunk appears among the top k results. Precision at k measures how many retrieved chunks are relevant. Mean reciprocal rank rewards systems that place the first relevant result near the top. These measures reveal whether failures originate in search. If the needed passage never reaches the prompt, changing generation instructions is unlikely to solve the problem.
+
+Chunk boundaries affect retrieval scores. A correct page may be retrieved while the exact sentence lies in an adjacent chunk. Evaluators should inspect text, not merely filenames. Duplicate overlapping chunks can make precision look worse while still helping answer quality. For multi-part questions, a single relevant chunk may be insufficient; coverage must account for every required piece of evidence.
+
+Answer-quality metrics
+
+Generated answers should be judged for correctness, completeness, relevance, groundedness, and citation accuracy. Correctness means claims agree with the source. Completeness means the response includes the important parts needed to answer the question. Relevance penalizes unnecessary material. Groundedness requires every factual claim to be supported by retrieved context. Citation accuracy checks that cited files and locations actually contain the associated claims.
+
+Automated scoring can accelerate development, but human review remains valuable. Text-overlap metrics may penalize a correct paraphrase, while a language-model judge may introduce its own inconsistency and bias. A practical approach combines deterministic retrieval measures, structured model-assisted grading, and periodic human audits. Reviewers should record failure categories so improvements target recurring problems rather than isolated examples.
+
+Safety and prompt injection
+
+Documents themselves may contain instructions such as a sentence telling the assistant to ignore previous rules. These instructions are data, not authority. The system prompt should say that retrieved content is untrusted reference material and must not override application instructions. Context should be clearly delimited. Applications handling external documents may also scan for suspicious instruction-like text and restrict executable links or embedded content.
+
+Access control is another safety boundary. Retrieval must respect user permissions. A shared vector index can accidentally surface confidential text if authorization filters are missing or metadata is incomplete. Permission checks should occur before content is returned to the model. Sensitive values should be redacted where appropriate, and logs should avoid retaining confidential passages unless operational policy explicitly permits it.
+
+Operational testing
+
+Evaluation should include engineering behavior as well as answer quality. Test empty folders, corrupt files, image-only PDFs, duplicate documents, very long questions, missing indexes, unavailable model servers, and invalid configuration values. The interface should return actionable errors instead of stack traces. Indexing should be repeatable and should not create duplicates. Querying should not silently rebuild the database because that hides cost and makes startup unpredictable.
+
+Latency can be divided into query embedding, vector search, prompt construction, and language-model generation. Measuring these stages separately shows where optimization is useful. Index size, memory use, and model startup time should also be observed. A smaller local model may be appropriate for a demonstration, while a larger model may improve synthesis at the cost of slower responses.
+
+Continuous improvement
+
+Evaluation is not a one-time event. New document types and user questions expose new failure modes. Teams should preserve a regression suite and rerun it whenever parsers, chunk settings, embedding methods, retrieval parameters, prompts, or generation models change. User feedback can supply new tests, but it should be reviewed and anonymized before entering the evaluation dataset.
+
+A trustworthy Q&A bot is not defined by always producing an answer. It is defined by retrieving appropriate evidence, communicating uncertainty, citing sources accurately, protecting restricted information, and failing clearly when required services or evidence are unavailable. These behaviors make the system useful for real decisions rather than merely impressive in a short demonstration.
