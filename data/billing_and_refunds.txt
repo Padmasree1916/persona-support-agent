@@ -1,0 +1,6 @@
+# Billing, duplicate charges, and refunds
+
+Invoices are generated on the first day of each billing cycle and are available under Settings > Billing > Invoices. A pending card authorization can resemble a duplicate charge and normally disappears within 3–5 business days.
+
+Confirmed duplicate charges, refund demands, chargebacks, and bank-detail changes require human review. Support must verify the workspace owner before discussing transaction details. Approved refunds return to the original payment method; bank processing time varies and no exact arrival date should be promised.
+

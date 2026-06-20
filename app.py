@@ -1,109 +1,72 @@
-"""Streamlit interface for the document Q&A bot."""
-
-from __future__ import annotations
-
-from typing import Any
+import json
 
 import streamlit as st
 
-from src.config import DATA_DIR, DB_DIR, GEMINI_API_KEY, GEMINI_MODEL, TOP_K
-from src.ingest import SUPPORTED_EXTENSIONS, index_documents
-from src.query import answer_question
+from src import SupportAgent
 
 
-def _document_count() -> int:
-    return sum(
-        1
-        for path in DATA_DIR.iterdir()
-        if path.is_file()
-        and path.name.lower() != "readme.md"
-        and path.suffix.lower() in SUPPORTED_EXTENSIONS
-    )
+st.set_page_config(page_title="Adsparkx Persona Support", page_icon="✨", layout="wide")
+st.title("Persona-Adaptive Customer Support")
+st.caption("Grounded answers, audience-aware tone, and safe human escalation")
 
 
-def _render_sources(chunks: list[dict[str, Any]]) -> None:
-    if not chunks:
-        return
-    st.markdown("**Retrieved sources**")
-    for number, chunk in enumerate(chunks, start=1):
-        label = f"{number}. {chunk['citation']}"
-        with st.expander(label):
-            st.caption(f"Cosine distance: {chunk['distance']:.4f} — lower is better")
-            st.write(chunk["text"])
+@st.cache_resource
+def load_agent() -> SupportAgent:
+    agent = SupportAgent()
+    agent.initialize()
+    return agent
 
 
-st.set_page_config(
-    page_title="Document Q&A Bot",
-    page_icon="📚",
-    layout="wide",
-)
-
-st.title("📚 Document Q&A Bot")
-st.caption(
-    "Ask questions about the indexed PDF, DOCX, and TXT files. "
-    "Answers are grounded in retrieved passages and include citations."
-)
-
-with st.sidebar:
-    st.header("Knowledge base")
-    st.metric("Source documents", _document_count())
-    st.write(f"Index: `{'ready' if DB_DIR.exists() else 'not built'}`")
-    st.write(f"Answer model: `{GEMINI_MODEL}`")
-    gemini_api_key = st.text_input(
-        "Gemini API key",
-        value=GEMINI_API_KEY,
-        type="password",
-        help="Used only for Gemini requests. Prefer setting GEMINI_API_KEY in .env.",
-    )
-    top_k = st.slider("Retrieved chunks", min_value=1, max_value=10, value=TOP_K)
-
-    if st.button("Rebuild document index", type="primary", use_container_width=True):
-        try:
-            with st.spinner("Reading, chunking, and indexing documents..."):
-                chunk_count = index_documents(force_rebuild=True)
-            st.success(f"Indexed {chunk_count} chunks.")
-        except Exception as exc:
-            st.error(f"Indexing failed: {exc}")
-
-    if st.button("Clear conversation", use_container_width=True):
-        st.session_state.messages = []
-        st.rerun()
-
-    st.divider()
-    st.caption("Create a Gemini API key in Google AI Studio. Never commit it.")
-
+agent = load_agent()
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-        if message["role"] == "assistant":
-            _render_sources(message.get("chunks", []))
+with st.sidebar:
+    st.subheader("System")
+    st.write("LLM mode:", "Gemini" if agent.settings.gemini_api_key else "Offline demo fallback")
+    st.write("Retrieval threshold:", agent.settings.retrieval_threshold)
+    if st.button("Rebuild knowledge index"):
+        count = agent.initialize(rebuild=True)
+        st.success(f"Indexed {count} chunks")
+    if st.button("Clear conversation"):
+        st.session_state.messages = []
+        agent.reset()
+        st.rerun()
 
-if question := st.chat_input("Ask a question about the documents"):
-    st.session_state.messages.append({"role": "user", "content": question})
+for item in st.session_state.messages:
+    with st.chat_message(item["role"]):
+        st.markdown(item["content"])
+        if item.get("details"):
+            with st.expander("Agent details"):
+                st.json(item["details"])
+
+if prompt := st.chat_input("Describe your support issue"):
+    st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
-        st.markdown(question)
-
+        st.markdown(prompt)
     with st.chat_message("assistant"):
-        try:
-            with st.spinner("Retrieving evidence and generating an answer..."):
-                result = answer_question(
-                    question, top_k=top_k, api_key=gemini_api_key
-                )
-            st.markdown(result["answer"])
-            _render_sources(result["chunks"])
-            st.session_state.messages.append(
-                {
-                    "role": "assistant",
-                    "content": result["answer"],
-                    "chunks": result["chunks"],
-                }
-            )
-        except RuntimeError as exc:
-            message = f"Unable to answer: {exc}"
-            st.error(message)
-            st.session_state.messages.append(
-                {"role": "assistant", "content": message, "chunks": []}
-            )
+        with st.spinner("Searching the support knowledge base…"):
+            result = agent.respond(prompt)
+        st.markdown(result.response)
+        cols = st.columns(3)
+        cols[0].metric("Persona", result.persona.persona)
+        cols[1].metric("Retrieval confidence", f"{result.sources[0].score:.2f}" if result.sources else "0.00")
+        cols[2].metric("Escalation", "Yes" if result.escalated else "No")
+        with st.expander("Retrieved sources"):
+            for source in result.sources:
+                st.write(f"**{source.citation()}** · score {source.score:.2f}")
+                st.caption(source.text[:500])
+        if result.handoff:
+            with st.expander("Human handoff summary", expanded=True):
+                st.json(result.handoff)
+                st.download_button("Download handoff JSON", json.dumps(result.handoff, indent=2), "handoff.json", "application/json")
+    details = {
+        "persona": result.persona.persona,
+        "persona_confidence": result.persona.confidence,
+        "sources": [source.citation() for source in result.sources],
+        "escalated": result.escalated,
+        "escalation_reasons": result.escalation_reasons,
+        "handoff": result.handoff,
+    }
+    st.session_state.messages.append({"role": "assistant", "content": result.response, "details": details})
+

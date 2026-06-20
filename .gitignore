@@ -1,8 +1,11 @@
 .env
 .venv/
-db/
-.rag_db/
 __pycache__/
 *.py[cod]
 .pytest_cache/
-~$*
+pytest-cache-files-*/
+.test_tmp/
+.coverage
+htmlcov/
+chroma_db/
+.streamlit/
