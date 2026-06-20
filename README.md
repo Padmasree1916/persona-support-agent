@@ -112,12 +112,20 @@ The handoff contains persona, issue, recent conversation, source documents, conf
    python -m pip install -r requirements.txt
    ```
 
-3. Copy `.env.example` to `.env`. Add a Gemini key for LLM-backed classification and generation. The app works in clearly labelled offline fallback mode without one.
+3. Copy `.env.example` to the ignored local `.env` file.
+
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+   Open `.env` and replace `replace_with_your_gemini_api_key` with your private
+   Google AI Studio key. Never edit `.env.example` with a real credential. The
+   app also works in clearly labelled offline fallback mode without a key.
 
 4. Start the web app.
 
    ```powershell
-   streamlit run app.py
+   python -m streamlit run app.py
    ```
 
    Or run the terminal version with `python cli.py`.
@@ -130,7 +138,7 @@ Python 3.11–3.13 is recommended for persistent Chroma storage. On Python 3.14,
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `GEMINI_API_KEY` | empty | Enables Gemini classification and generation |
+| `GEMINI_API_KEY` | dummy placeholder | Enables Gemini classification and generation |
 | `GEMINI_MODEL` | `gemini-2.5-flash` | Configurable Gemini model name |
 | `DATA_DIR` | `data` | Knowledge-base directory |
 | `CHROMA_DIR` | `chroma_db` | Persistent vector-index directory |
