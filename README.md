@@ -64,6 +64,7 @@ Local feature-hashing embeddings were chosen to keep ingestion private, determin
 │   ├── models.py             # Typed workflow data
 │   └── rag_pipeline.py       # Parsing, chunking, index, retrieval
 ├── tests/
+├── .env                       # committed dummy defaults only
 ├── .env.example
 └── requirements.txt
 ```
@@ -112,14 +113,15 @@ The handoff contains persona, issue, recent conversation, source documents, conf
    python -m pip install -r requirements.txt
    ```
 
-3. Copy `.env.example` to the ignored local `.env` file.
+3. Copy `.env.example` to the ignored local `.env.local` file.
 
    ```powershell
-   Copy-Item .env.example .env
+   Copy-Item .env.example .env.local
    ```
 
-   Open `.env` and replace `replace_with_your_gemini_api_key` with your private
-   Google AI Studio key. Never edit `.env.example` with a real credential. The
+   Open `.env.local` and replace `replace_with_your_gemini_api_key` with your private
+   Google AI Studio key. Never put a real credential in the committed `.env` or
+   `.env.example`. The
    app also works in clearly labelled offline fallback mode without a key.
 
 4. Start the web app.
@@ -146,7 +148,8 @@ Python 3.11–3.13 is recommended for persistent Chroma storage. On Python 3.14,
 | `RETRIEVAL_THRESHOLD` | `0.12` | Minimum accepted top cosine similarity |
 | `FRUSTRATION_TURN_LIMIT` | `2` | Frustrated turns before escalation |
 
-Never commit `.env` or API keys. `.gitignore` excludes both local secrets and the generated vector index.
+The committed `.env` contains dummy values only. Never put a real API key there.
+`.gitignore` excludes `.env.local`, local secrets, and the generated vector index.
 
 ## Example queries
 
